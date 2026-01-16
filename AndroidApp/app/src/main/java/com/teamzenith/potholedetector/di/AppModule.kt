@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.teamzenith.potholedetector.data.local.PotholeDatabase
 import com.teamzenith.potholedetector.data.remote.Esp32Api
+import com.teamzenith.potholedetector.data.remote.BackendApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -43,6 +44,20 @@ object AppModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(Esp32Api::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBackendApi(): BackendApi {
+        // USE YOUR PC IP HERE for real device (e.g., "http://192.168.1.5:3000")
+        // Use "http://10.0.2.2:3000" for Android Emulator
+        val baseUrl = "http://10.0.2.2:3000" 
+        
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(BackendApi::class.java)
     }
 
     @Provides
