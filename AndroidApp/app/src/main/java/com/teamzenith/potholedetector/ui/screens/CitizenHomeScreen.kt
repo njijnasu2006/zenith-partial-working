@@ -77,9 +77,14 @@ fun CitizenHomeScreen(
             TopAppBar(
                 title = { Text("Pothole Detector") },
                 actions = {
-                    // Bluetooth Button
+                     // Bluetooth Button
                     IconButton(onClick = { showBluetoothDialog = true }) {
-                         // Color code status
+                         val tint = when {
+                             bluetoothStatus == "Connected" -> Color.Green
+                             bluetoothStatus == "Connecting..." -> Color.Yellow
+                             bluetoothStatus.startsWith("Error") -> Color.Red
+                             else -> MaterialTheme.colorScheme.onSurface
+                         }
                          Icon(Icons.Default.Share, contentDescription = "Bluetooth", tint = tint)
                     }
 
