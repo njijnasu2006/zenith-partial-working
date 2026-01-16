@@ -152,7 +152,6 @@ void handleEvents() {
     e["time_s"] = events[idx].time_s;
     e["dip"] = events[idx].minZ;
   }
-
   String out;
   serializeJson(doc, out);
   server.send(200, "application/json", out);
