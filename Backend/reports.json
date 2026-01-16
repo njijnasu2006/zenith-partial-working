@@ -10,11 +10,11 @@
     },
     "severity": "High",
     "type": "Pothole",
-    "status": "Verified",
+    "status": "In Progress",
     "imageUrl": "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=400",
     "description": "Large pothole near the junction.",
     "source": "IoT-verified",
-    "estimatedCompletionDate": null,
+    "estimatedCompletionDate": "2026-01-15",
     "userFeedback": null
   },
   {

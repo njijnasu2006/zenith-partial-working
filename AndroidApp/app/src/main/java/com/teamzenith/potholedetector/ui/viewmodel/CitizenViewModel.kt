@@ -29,6 +29,52 @@ class CitizenViewModel @Inject constructor(
 
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
+    private val _bluetoothStatus = MutableStateFlow("Disconnected")
+    val bluetoothStatus: StateFlow<String> = _bluetoothStatus
+    
+    private var bluetoothJob: kotlinx.coroutines.Job? = null
+
+    fun connectBluetooth(deviceName: String) {
+        if (bluetoothJob?.isActive == true) {
+            bluetoothJob?.cancel()
+            _bluetoothStatus.value = "Disconnected"
+            return
+        }
+
+        bluetoothJob = viewModelScope.launch {
+            _bluetoothStatus.value = "Connecting..."
+            try {
+                 // Check permissions (assuming granted)
+                if (androidx.core.content.ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                     val priority = com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
+                     val token = com.google.android.gms.tasks.CancellationTokenSource().token
+                     val locHook = fusedLocationClient.getCurrentLocation(priority, token).await()
+                     
+                     val lat = locHook?.latitude ?: 0.0
+                     val lng = locHook?.longitude ?: 0.0
+                     
+                     _bluetoothStatus.value = "Connected" // Optimistic
+                     repository.startBluetoothSync(deviceName, lat, lng) 
+                } else {
+                     _bluetoothStatus.value = "Error: Loction Permission Missing"
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _bluetoothStatus.value = "Error: ${e.message}"
+            }
+        }
+    }
+    
+    // Extension to await task
+    private suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T? {
+        return kotlinx.coroutines.tasks.await(this)
+    }
+
     fun refreshData() {
         viewModelScope.launch {
             _isSyncing.value = true
