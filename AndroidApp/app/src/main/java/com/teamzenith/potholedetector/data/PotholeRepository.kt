@@ -4,6 +4,11 @@ import android.graphics.Bitmap
 import com.teamzenith.potholedetector.data.local.PotholeDao
 import com.teamzenith.potholedetector.data.local.PotholeReport
 import com.teamzenith.potholedetector.data.remote.Esp32Api
+import com.teamzenith.potholedetector.data.remote.BackendApi
+import com.teamzenith.potholedetector.data.remote.BackendReportRequest
+import com.teamzenith.potholedetector.data.remote.LocationData
+import android.util.Base64
+import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,6 +17,7 @@ import javax.inject.Singleton
 class PotholeRepository @Inject constructor(
     private val dao: PotholeDao,
     private val esp32Api: Esp32Api,
+    private val backendApi: BackendApi,
     private val geminiHelper: GeminiHelper
 ) {
     val allReports: Flow<List<PotholeReport>> = dao.getAllReports()
@@ -76,6 +82,28 @@ class PotholeRepository @Inject constructor(
             description = "Video Report"
             // Future: Upload video to Gemini 1.5 Pro for analysis
         }
+
+        // 2. Prepare Base64 Image
+        val base64Image = if (bitmap != null) {
+            "data:image/jpeg;base64," + bitmapToBase64(bitmap)
+        } else {
+            null
+        }
+
+        // 3. Send to Backend (Fire and Forget / or await)
+        try {
+            val backendReport = BackendReportRequest(
+                userId = "user_android_${System.currentTimeMillis()}", // Unique-ish ID
+                location = LocationData(lat, lng, "Unknown Address"),
+                severity = severity,
+                imageUrl = base64Image,
+                description = description,
+                type = "Pothole"
+            )
+            backendApi.submitReport(backendReport)
+        } catch (e: Exception) {
+            e.printStackTrace() // Don't fail the local save if network fails
+        }
         
         // 2. Save to Local DB
         val report = PotholeReport(
@@ -89,5 +117,11 @@ class PotholeRepository @Inject constructor(
             isSynced = false
         )
         dao.insertReport(report)
+    }
+
+    private fun bitmapToBase64(bitmap: Bitmap): String {
+        val outputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+        return Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
     }
 }
