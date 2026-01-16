@@ -14,6 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -78,13 +80,7 @@ fun CitizenHomeScreen(
                     // Bluetooth Button
                     IconButton(onClick = { showBluetoothDialog = true }) {
                          // Color code status
-                         val tint = when {
-                             bluetoothStatus == "Connected" -> Color.Green
-                             bluetoothStatus == "Connecting..." -> Color.Yellow
-                             bluetoothStatus.startsWith("Error") -> Color.Red
-                             else -> MaterialTheme.colorScheme.onSurface
-                         }
-                         Icon(androidx.compose.material.icons.filled.Share, contentDescription = "Bluetooth", tint = tint)
+                         Icon(Icons.Default.Share, contentDescription = "Bluetooth", tint = tint)
                     }
 
                     IconButton(onClick = onNavigateToDashboard) {
@@ -111,7 +107,7 @@ fun CitizenHomeScreen(
             if (bluetoothStatus == "Connected") {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                      Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                          Icon(androidx.compose.material.icons.filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                          Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                           Spacer(Modifier.width(8.dp))
                           Text("Connected to $deviceNameInput", style = MaterialTheme.typography.bodySmall)
                      }

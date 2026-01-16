@@ -105,6 +105,7 @@ dependencies {
     implementation(libs.osmdroid.android)
     implementation(libs.androidx.preference)
     implementation(libs.play.services.location)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Camera
     implementation("androidx.camera:camera-core:1.3.1")
