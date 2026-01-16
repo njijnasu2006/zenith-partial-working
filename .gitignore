@@ -8,3 +8,17 @@ build/
 
 Thumbs.db
 .DS_Store
+
+# Web Dashboard
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+.vscode/
+.idea/
