@@ -1,21 +1,20 @@
 package com.teamzenith.potholedetector.data.remote
 
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothSocket
+import android.bluetooth.*
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.isActive
-import java.io.IOException
+import kotlinx.coroutines.flow.callbackFlow
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
-
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 @Singleton
@@ -27,55 +26,102 @@ class AppBluetoothManager @Inject constructor(
         manager.adapter
     }
     
-    // Standard UUID for SPP (Serial Port Profile)
-    private val SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+    // ESP32 BLE UUIDs
+    private val SERVICE_UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
+    private val CHARACTERISTIC_UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8")
+    private val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb") // Standard Client Config
 
     @SuppressLint("MissingPermission")
-    fun connectAndListen(deviceName: String): Flow<Esp32RawEvent> = flow {
+    fun connectAndListen(deviceName: String): Flow<Esp32RawEvent> = callbackFlow {
         if (bluetoothAdapter == null || !bluetoothAdapter!!.isEnabled) {
-            throw Exception("Bluetooth disabled")
+            close(Exception("Bluetooth disabled"))
+            return@callbackFlow
         }
 
-        // 1. Find the Paired Device
-        val device = bluetoothAdapter!!.bondedDevices.find { it.name == deviceName }
-            ?: throw Exception("Device '$deviceName' not paired. Please pair in Settings.")
+        val scanner = bluetoothAdapter!!.bluetoothLeScanner
+        if (scanner == null) {
+             close(Exception("BLE Scanner unavailable"))
+             return@callbackFlow
+        }
 
-        // 2. Connect
-        var socket: BluetoothSocket? = null
-        try {
-            socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
-            socket.connect()
-            
-            // 3. Listen Loop
-            val inputStream = socket.inputStream
-            val reader = inputStream.bufferedReader()
-            val gson = Gson()
+        var gatt: BluetoothGatt? = null
+        
+        // Callback for GATT events
+        val gattCallback = object : BluetoothGattCallback() {
+            override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
+                if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    Log.d("BLE", "Connected to $deviceName")
+                    g.discoverServices()
+                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    Log.d("BLE", "Disconnected")
+                    close(Exception("Device disconnected"))
+                }
+            }
 
-            while (kotlin.coroutines.coroutineContext.isActive) {
-                if (inputStream.available() > 0 || reader.ready()) {
-                    val line = reader.readLine()
-                    if (line != null && line.isNotEmpty()) {
-                        try {
-                            // Parse JSON: {"dip": -14.5, "time": 1205}
-                            // Expected keys: "dip" (double), "time_s" or "time" (long)
-                            // Mapping to Esp32RawEvent which uses "time_s"
-                            // If ESP sends "time", we might need a custom class or adapter.
-                            // Assuming ESP sends exactly what matches Esp32RawEvent: {"time_s": 123, "dip": -12.0}
-                            val event = gson.fromJson(line, Esp32RawEvent::class.java)
-                            emit(event)
-                        } catch (e: Exception) {
-                            // Ignore parse errors (partial lines etc)
-                            e.printStackTrace()
+            override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    val service = g.getService(SERVICE_UUID)
+                    if (service != null) {
+                        val characteristic = service.getCharacteristic(CHARACTERISTIC_UUID)
+                        if (characteristic != null) {
+                            // 1. Enable local notifications
+                            g.setCharacteristicNotification(characteristic, true)
+                            
+                            // 2. Write to CCCD descriptor to enable remote notifications
+                            val descriptor = characteristic.getDescriptor(CCCD_UUID)
+                            if (descriptor != null) {
+                                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                                g.writeDescriptor(descriptor)
+                            }
                         }
                     }
                 }
             }
-        } catch (e: IOException) {
-            throw Exception("Connection failed: ${e.message}")
-        } finally {
-            try {
-                socket?.close()
-            } catch (e: Exception) { e.printStackTrace() }
+
+            override fun onCharacteristicChanged(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
+                // Handle notification
+                val data = characteristic.value
+                if (data != null && data.isNotEmpty()) {
+                    val jsonString = String(data)
+                    try {
+                        val gson = Gson()
+                        val event = gson.fromJson(jsonString, Esp32RawEvent::class.java)
+                        trySend(event)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
         }
-    }.flowOn(Dispatchers.IO)
+
+        // Scan Callback
+        val scanCallback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                val device = result.device
+                if (device.name == deviceName) {
+                    // Stop scanning
+                    scanner.stopScan(this)
+                    
+                    // Connect
+                    Log.d("BLE", "Found device, connecting...")
+                    gatt = device.connectGatt(context, false, gattCallback)
+                }
+            }
+            
+            override fun onScanFailed(errorCode: Int) {
+                close(Exception("Scan failed with code $errorCode"))
+            }
+        }
+
+        // Start Scan
+        // Match only by name if possible, but name filters can be tricky if adv packet doesn't have it initially.
+        // For simplicity, we scan everything and filter in callback, but adding a filter is better practice.
+        // We'll scan broadly and check name in callback to be safe against partial advertising packets.
+        scanner.startScan(scanCallback)
+
+        awaitClose {
+            scanner.stopScan(scanCallback)
+            gatt?.close()
+        }
+    }
 }
