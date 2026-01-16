@@ -53,27 +53,106 @@ fun ReportPotholeScreen(
     // Location Client
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     
-    // Function to update location
-    @SuppressLint("MissingPermission")
-    fun updateLocation() {
-        locationStatus = "Fetching location..."
-        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-            .addOnSuccessListener { location ->
-                if (location != null) {
-                    detectedLocation = location
-                    locationStatus = "Location Found: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
-                } else {
-                    locationStatus = "Location not found. Ensure GPS is on."
-                }
-            }
-            .addOnFailureListener {
-                locationStatus = "Failed to get location: ${it.message}"
-            }
+    // Function to check if GPS is enabled
+    fun isLocationEnabled(): Boolean {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+        return locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) ||
+               locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
     }
 
-    // Effect to fetch location on enter
+    var showLocationDisabledAlert by remember { mutableStateOf(false) }
+
+    // Function to actually fetch location (Permissions assumed granted here)
+    @SuppressLint("MissingPermission")
+    fun fetchLocation() {
+        if (!isLocationEnabled()) {
+            showLocationDisabledAlert = true
+            locationStatus = "Location services disabled."
+            return
+        }
+
+        locationStatus = "Fetching location..."
+        
+        // 1. Try Last Known Location (Fast)
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                detectedLocation = location
+                locationStatus = "Location Found: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
+            } else {
+                // 2. If Last Known is null, request fresh location (Slower but accurate)
+                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                    .addOnSuccessListener { freshLocation ->
+                        if (freshLocation != null) {
+                            detectedLocation = freshLocation
+                            locationStatus = "Location Found: ${String.format("%.4f", freshLocation.latitude)}, ${String.format("%.4f", freshLocation.longitude)}"
+                        } else {
+                            locationStatus = "Exhausted: Location not found. Ensure GPS is on."
+                        }
+                    }
+                    .addOnFailureListener {
+                        locationStatus = "Failed to get fresh location: ${it.message}"
+                    }
+            }
+        }.addOnFailureListener {
+            locationStatus = "Failed to get last location: ${it.message}"
+        }
+    }
+
+    // Permission Launcher
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseLocation = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        
+        if (fineLocation || coarseLocation) {
+             fetchLocation()
+        } else {
+             locationStatus = "Location permission denied. Cannot geotag report."
+        }
+    }
+    
+    // Effect to check permission on enter
     LaunchedEffect(Unit) {
-        updateLocation()
+        val fineStatus = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        val coarseStatus = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+        
+        if (fineStatus == android.content.pm.PackageManager.PERMISSION_GRANTED || 
+            coarseStatus == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            fetchLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+    
+    // GPS Disabled Alert
+    if (showLocationDisabledAlert) {
+        AlertDialog(
+            onDismissRequest = { showLocationDisabledAlert = false },
+            title = { Text("Enable Location") },
+            text = { Text("Your location services are turned off. Please enable them to report potholes accurately.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLocationDisabledAlert = false
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("Turn On")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLocationDisabledAlert = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     // Launchers
@@ -168,7 +247,14 @@ fun ReportPotholeScreen(
                             )
                             if (detectedLocation == null) {
                                 Spacer(modifier = Modifier.weight(1f))
-                                TextButton(onClick = { updateLocation() }) {
+                                TextButton(onClick = { 
+                                     val fineStatus = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                                     if (fineStatus == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                         fetchLocation()
+                                     } else {
+                                         locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+                                     }
+                                }) {
                                     Text("Retry")
                                 }
                             }
@@ -183,7 +269,7 @@ fun ReportPotholeScreen(
                             .fillMaxWidth()
                             .height(250.dp)
                             .padding(8.dp),
-                        contentAlignment = Alignment.Center
+                            contentAlignment = Alignment.Center
                     ) {
                         if (capturedBitmap != null) {
                             Image(

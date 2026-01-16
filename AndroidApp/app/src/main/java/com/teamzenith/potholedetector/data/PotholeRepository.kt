@@ -13,11 +13,17 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import com.teamzenith.potholedetector.data.remote.BluetoothManager
+import com.teamzenith.potholedetector.data.remote.AppBluetoothManager
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.onEach
+
 @Singleton
 class PotholeRepository @Inject constructor(
     private val dao: PotholeDao,
     private val esp32Api: Esp32Api,
     private val backendApi: BackendApi,
+    private val bluetoothManager: AppBluetoothManager,
     private val geminiHelper: GeminiHelper
 ) {
     val allReports: Flow<List<PotholeReport>> = dao.getAllReports()
@@ -54,6 +60,55 @@ class PotholeRepository @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // Bluetooth: Stream events in real-time
+    suspend fun startBluetoothSync(deviceName: String, lat: Double, lng: Double) {
+        try {
+            bluetoothManager.connectAndListen(deviceName).collect { event ->
+                 val externalId = "bt_${deviceName}_${event.time_s}_${event.dip}"
+                 
+                 if (!dao.existsByExternalId(externalId)) {
+                        val depth = kotlin.math.abs(event.dip)
+                        val severity = when {
+                            depth > 20 -> "Critical"
+                            depth > 14 -> "High"
+                            depth > 10 -> "Medium"
+                            else -> "Low"
+                        }
+
+                        // 1. Save Local
+                        val report = PotholeReport(
+                            type = "Auto-BT",
+                            severity = severity,
+                            latitude = lat,
+                            longitude = lng,
+                            timestamp = System.currentTimeMillis(),
+                            externalId = externalId,
+                            isSynced = false 
+                        )
+                        dao.insertReport(report)
+
+                        // 2. Upload to Backend (Live Analytics)
+                        try {
+                            val backendReport = BackendReportRequest(
+                                userId = "user_android_bt",
+                                location = LocationData(lat, lng, "Bluetooth Detected"),
+                                severity = severity,
+                                imageUrl = null,
+                                description = "Auto-detected via Bluetooth (Dip: ${event.dip})",
+                                type = "Pothole"
+                            )
+                            backendApi.submitReport(backendReport)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                 }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e // Re-throw to let UI know
         }
     }
 
