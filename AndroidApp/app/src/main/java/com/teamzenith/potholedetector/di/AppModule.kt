@@ -51,7 +51,7 @@ object AppModule {
     fun provideBackendApi(): BackendApi {
         // USE YOUR PC IP HERE for real device (e.g., "http://192.168.1.5:3000")
         // Use "http://10.0.2.2:3000" for Android Emulator
-        val baseUrl = "http://10.21.36.25:3000"
+        val baseUrl = "http://172.20.64.109:3000"
         
         return Retrofit.Builder()
             .baseUrl(baseUrl)
