@@ -71,10 +71,7 @@ class CitizenViewModel @Inject constructor(
         }
     }
     
-    // Extension to await task
-    private suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T? {
-        return kotlinx.coroutines.tasks.await(this)
-    }
+    // Extension removed, using library import directly
 
     fun refreshData() {
         viewModelScope.launch {
