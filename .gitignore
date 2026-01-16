@@ -1,0 +1,10 @@
+.gradle/
+**/.gradle/
+build/
+**/build/
+
+*.apk
+*.aab
+
+Thumbs.db
+.DS_Store
