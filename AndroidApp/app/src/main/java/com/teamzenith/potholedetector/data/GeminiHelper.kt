@@ -5,13 +5,28 @@ import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import javax.inject.Inject
 
-data class PotholeAnalysis(val severity: String, val description: String)
+data class PotholeAnalysis(
+    val severity: String, 
+    val description: String,
+    val priority: String // "High", "Medium", "Low"
+)
 
 class GeminiHelper @Inject constructor(
     private val generativeModel: GenerativeModel
 ) {
     suspend fun analyzePotholeImage(bitmap: Bitmap): PotholeAnalysis {
-        val prompt = "Analyze this image for road damage. Is there a pothole? implementation_planIf yes, classify severity as Low, Medium, High, or Critical. Provide a short description."
+        val prompt = """
+            Analyze this road image.
+            1. Is there a pothole?
+            2. Estimate severity: Low, Medium, High, or Critical.
+            3. Recommend repair priority: Low, Medium, or High.
+            4. Provide a 1-sentence description.
+            
+            Return ONLY logic based on this format:
+            Severity: [Value]
+            Priority: [Value]
+            Description: [Text]
+        """.trimIndent()
         
         return try {
             val response = generativeModel.generateContent(
@@ -21,8 +36,9 @@ class GeminiHelper @Inject constructor(
                 }
             )
             
-            // Simple parsing logic (Robust parsing needed in production)
-            val text = response.text ?: "No description"
+            val text = response.text ?: ""
+            
+            // Simple keyword parsing
             val severity = when {
                 text.contains("Critical", ignoreCase = true) -> "Critical"
                 text.contains("High", ignoreCase = true) -> "High"
@@ -30,9 +46,15 @@ class GeminiHelper @Inject constructor(
                 else -> "Low"
             }
             
-            PotholeAnalysis(severity, text)
+            val priority = when {
+                severity == "Critical" || severity == "High" -> "High"
+                severity == "Medium" -> "Medium"
+                else -> "Low"
+            }
+            
+            PotholeAnalysis(severity, text, priority)
         } catch (e: Exception) {
-            PotholeAnalysis("Unknown", "Error analyzing image: ${e.message}")
+            PotholeAnalysis("Unknown", "Error: ${e.message}", "Low")
         }
     }
 }

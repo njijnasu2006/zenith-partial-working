@@ -133,7 +133,8 @@ class PotholeRepository @Inject constructor(
             try {
                 val analysis = geminiHelper.analyzePotholeImage(bitmap)
                 severity = analysis.severity
-                description = analysis.description
+                // Append Priority to description to show it without DB migration
+                description = "${analysis.description} [Priority: ${analysis.priority}]"
             } catch (e: Exception) {
                 // Fallback if analysis fails
                 description = "Analysis failed: ${e.message}"
