@@ -9,7 +9,7 @@ export const Analytics = () => {
     const typeData = [
         { name: 'Pothole', value: reports.filter(r => r.type === 'Pothole').length },
         { name: 'Uneven Road', value: reports.filter(r => r.type === 'Uneven Road').length },
-        { name: 'Waterlogging', value: reports.filter(r => r.type === 'Waterlogging').length },
+        { name: 'Water Logging', value: reports.filter(r => r.type === 'Water Logging').length },
     ];
 
     const severityData = [

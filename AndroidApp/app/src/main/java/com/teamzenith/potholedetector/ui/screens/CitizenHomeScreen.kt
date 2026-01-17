@@ -38,7 +38,7 @@ fun CitizenHomeScreen(
     val bluetoothStatus by viewModel.bluetoothStatus.collectAsState()
     
     var showBluetoothDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    var deviceNameInput by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("Zenith_Node_01") }
+    var deviceNameInput by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("ESP32_POTHOLE") }
 
     if (showBluetoothDialog) {
         AlertDialog(

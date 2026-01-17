@@ -171,27 +171,22 @@ fun ReportPotholeScreen(
     ) { uri ->
         if (uri != null) {
             selectedUri = uri
-            capturedBitmap = null
-            // Determine type
-            val type = context.contentResolver.getType(uri) ?: "image/*"
-            mediaType = if (type.startsWith("video")) "VIDEO" else "IMAGE"
             
-            // Try extracting EXIF location
+            // Decoe Bitmap for Gemini Analysis
             try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                     val exif = androidx.exifinterface.media.ExifInterface(inputStream)
-                     val latLong = exif.latLong
-                     if (latLong != null) {
-                         val loc = Location("exif")
-                         loc.latitude = latLong[0]
-                         loc.longitude = latLong[1]
-                         detectedLocation = loc
-                         locationStatus = "Location from Media: ${String.format("%.4f", loc.latitude)}, ${String.format("%.4f", loc.longitude)}"
-                     }
+                if (android.os.Build.VERSION.SDK_INT < 28) {
+                    capturedBitmap = android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                } else {
+                    val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+                    capturedBitmap = android.graphics.ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                         decoder.isMutableRequired = true
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+            
+            mediaType = "IMAGE"
         }
     }
     
@@ -308,7 +303,7 @@ fun ReportPotholeScreen(
                             Text("Camera")
                         }
                         FilledTonalButton(onClick = { 
-                            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         }) {
                             Icon(Icons.Default.PhotoLibrary, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
