@@ -5,6 +5,15 @@ import { MapComponent } from '../../components/map/MapComponent';
 export const AdminMap = () => {
     const { reports } = useData();
 
+    // Calculate Stats
+    const criticalZones = reports.filter(r => r.severity === 'Critical' && r.status !== 'Resolved' && r.status !== 'Ignored').length;
+    const warningZones = reports.filter(r => (r.severity === 'High' || r.severity === 'Medium') && r.status !== 'Resolved' && r.status !== 'Ignored').length;
+
+    // Repair Progress
+    const totalActionable = reports.filter(r => r.status === 'Verified' || r.status === 'Resolved').length;
+    const resolved = reports.filter(r => r.status === 'Resolved').length;
+    const progress = totalActionable > 0 ? Math.round((resolved / totalActionable) * 100) : 0;
+
     return (
         <div className="space-y-4">
             <div>
@@ -19,15 +28,15 @@ export const AdminMap = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-red-50 p-4 rounded-lg border border-red-100">
                     <h4 className="font-bold text-red-800">Critical Zones</h4>
-                    <p className="text-sm text-red-600">3 areas require immediate attention.</p>
+                    <p className="text-sm text-red-600">{criticalZones} areas require immediate attention.</p>
                 </div>
                 <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
                     <h4 className="font-bold text-orange-800">Warning Zones</h4>
-                    <p className="text-sm text-orange-600">detected uneven surfaces near schools.</p>
+                    <p className="text-sm text-orange-600">{warningZones} areas with potential hazards.</p>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg border border-green-100">
                     <h4 className="font-bold text-green-800">Repair Progress</h4>
-                    <p className="text-sm text-green-600">45% of verified potholes repaired this month.</p>
+                    <p className="text-sm text-green-600">{progress}% of verified potholes repaired.</p>
                 </div>
             </div>
         </div>

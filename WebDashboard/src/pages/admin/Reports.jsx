@@ -1,9 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { Check, X, Maximize2 } from 'lucide-react';
 
 export const Reports = () => {
     const { reports, updateReportStatus } = useData();
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredReports = reports.filter(report => {
+        const query = searchQuery.toLowerCase();
+        const address = report.location?.address?.toLowerCase() || '';
+        const type = report.type?.toLowerCase() || '';
+        const status = report.status?.toLowerCase() || '';
+
+        return address.includes(query) || type.includes(query) || status.includes(query);
+    });
 
     return (
         <div>
@@ -13,7 +23,13 @@ export const Reports = () => {
                     <p className="text-slate-500">Verify user submissions and AI detections.</p>
                 </div>
                 <div className="flex gap-2">
-                    <input type="text" placeholder="Search location..." className="px-4 py-2 border rounded-lg text-sm" />
+                    <input
+                        type="text"
+                        placeholder="Search location..."
+                        className="px-4 py-2 border rounded-lg text-sm"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                     <select className="px-4 py-2 border rounded-lg text-sm bg-white">
                         <option>All Status</option>
                         <option>Pending</option>
@@ -34,22 +50,24 @@ export const Reports = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {reports.map((report) => (
+                        {filteredReports.map((report) => (
                             <tr key={report.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="p-4">
                                     {report.imageUrl ? (
                                         <div className="relative group w-16 h-16 rounded overflow-hidden cursor-pointer">
-                                            <img src={report.imageUrl} alt="Pothole" className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Maximize2 className="text-white w-4 h-4" />
-                                            </div>
+                                            <a href={report.imageUrl} target='_blank' rel='noopener noreferrer'>
+                                                <img src={report.imageUrl} alt="Pothole" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Maximize2 className="text-white w-4 h-4" />
+                                                </div>
+                                            </a>
                                         </div>
                                     ) : (
                                         <img src="/sensor.avif" alt="Pothole" className="size-12 mx-2 object-cover" />
                                     )}
                                 </td>
                                 <td className="p-4">
-                                    <p className="font-medium text-slate-800 text-sm">{report.location.address}</p>
+                                    <p className="font-medium text-slate-800 text-sm w-[200px]">{report.location.address}</p>
                                     <p className="text-xs text-slate-500 mt-1">{new Date(report.timestamp).toLocaleDateString()}, {new Date(report.timestamp).toLocaleTimeString()}</p>
                                     <p className="text-[10px] text-brand-600 font-mono mt-1 w-24 truncate">{report.location.lat}, {report.location.lng}</p>
                                 </td>
