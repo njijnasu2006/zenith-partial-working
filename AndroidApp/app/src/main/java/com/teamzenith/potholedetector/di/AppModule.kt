@@ -42,7 +42,7 @@ object AppModule {
     fun provideBackendApi(): BackendApi {
         // USE YOUR PC IP HERE for real device (e.g., "http://192.168.1.5:3000")
         // NOTE: For Windows Mobile Hotspot, the default IP is usually 192.168.137.1
-        val baseUrl = "http://192.168.137.1:3000"
+        val baseUrl = "http://100.107.44.114:3000"
         
         return Retrofit.Builder()
             .baseUrl(baseUrl)

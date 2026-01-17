@@ -6,6 +6,7 @@ import com.google.ai.client.generativeai.type.content
 import javax.inject.Inject
 
 data class PotholeAnalysis(
+    val type: String, // "Pothole", "Uneven Road", "Water Logging", "Invalid"
     val severity: String, 
     val description: String,
     val priority: String // "High", "Medium", "Low"
@@ -16,16 +17,21 @@ class GeminiHelper @Inject constructor(
 ) {
     suspend fun analyzePotholeImage(bitmap: Bitmap): PotholeAnalysis {
         val prompt = """
-            Analyze this road image.
-            1. Is there a pothole?
-            2. Estimate severity: Low, Medium, High, or Critical.
-            3. Recommend repair priority: Low, Medium, or High.
-            4. Provide a 1-sentence description.
-            
-            Return ONLY logic based on this format:
-            Severity: [Value]
-            Priority: [Value]
-            Description: [Text]
+            Analyze this image.
+            Return a pure JSON object (no markdown formatting) with the following fields:
+            - "type": "Pothole", "Uneven Road", "Water Logging", or "Invalid"
+            - "severity": "Low", "Medium", "High", "Critical", or "Invalid"
+            - "priority": "Low", "Medium", "High"
+            - "description": "1-sentence description"
+
+            Rules:
+            1. Classify the image into one of these types:
+               - "Pothole": A hole in the road surface.
+               - "Uneven Road": Rough surface, cracks, not a distinct hole.
+               - "Water Logging": Water accumulation on the road.
+               - "Invalid": Not a road image (e.g., hand, face, indoor).
+            2. If "type" is "Invalid", set "severity" to "Invalid".
+            3. Return ONLY the JSON string.
         """.trimIndent()
         
         return try {
@@ -36,25 +42,20 @@ class GeminiHelper @Inject constructor(
                 }
             )
             
-            val text = response.text ?: ""
+            val text = response.text ?: "{}"
             
-            // Simple keyword parsing
-            val severity = when {
-                text.contains("Critical", ignoreCase = true) -> "Critical"
-                text.contains("High", ignoreCase = true) -> "High"
-                text.contains("Medium", ignoreCase = true) -> "Medium"
-                else -> "Low"
-            }
+            // Clean up code blocks if present (e.g. ```json ... ```)
+            val jsonString = text.replace("```json", "").replace("```", "").trim()
             
-            val priority = when {
-                severity == "Critical" || severity == "High" -> "High"
-                severity == "Medium" -> "Medium"
-                else -> "Low"
-            }
+            val jsonObject = org.json.JSONObject(jsonString)
+            val type = jsonObject.optString("type", "Pothole")
+            val severity = jsonObject.optString("severity", "Medium")
+            val priority = jsonObject.optString("priority", "Medium")
+            val description = jsonObject.optString("description", "No description available")
             
-            PotholeAnalysis(severity, text, priority)
+            PotholeAnalysis(type, severity, description, priority)
         } catch (e: Exception) {
-            PotholeAnalysis("Unknown", "Error: ${e.message}", "Low")
+            PotholeAnalysis("Unknown", "Unknown", "Error parsing AI response: ${e.message}", "Low")
         }
     }
 }
