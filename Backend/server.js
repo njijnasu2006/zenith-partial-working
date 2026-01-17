@@ -35,34 +35,6 @@ const readData = () => {
     if (!fs.existsSync(DATA_FILE)) {
         // Initialize with the mock data we had in the dashboard
         const initialData = [
-            {
-                id: 'r-101',
-                userId: 'u-1',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-                location: { lat: 20.2961, lng: 85.8245, address: 'Patia, Bhubaneswar' },
-                severity: 'High',
-                type: 'Pothole',
-                status: 'Verified',
-                imageUrl: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=400',
-                description: 'Large pothole near the junction.',
-                source: 'IoT-verified',
-                estimatedCompletionDate: null,
-                userFeedback: null
-            },
-            {
-                id: 'r-102',
-                userId: 'u-2',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-                location: { lat: 20.3000, lng: 85.8300, address: 'KIIT Square' },
-                severity: 'Medium',
-                type: 'Uneven Road',
-                status: 'Pending',
-                imageUrl: 'https://images.unsplash.com/photo-1584448082946-b747d93a206c?auto=format&fit=crop&q=80&w=400',
-                description: 'Bumpy road section.',
-                source: 'User Report',
-                estimatedCompletionDate: null,
-                userFeedback: null
-            }
         ];
         fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
         return initialData;

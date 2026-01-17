@@ -45,7 +45,7 @@ export const Reports = () => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <span className="text-xs text-slate-400">No Img</span>
+                                        <img src="/sensor.avif" alt="Pothole" className="size-12 mx-2 object-cover" />
                                     )}
                                 </td>
                                 <td className="p-4">
