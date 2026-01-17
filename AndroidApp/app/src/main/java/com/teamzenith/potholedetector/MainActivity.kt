@@ -24,6 +24,29 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme { // TODO: Custom Theme
+                // Request Permissions
+                val permissionsToRequest = buildList {
+                    add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    add(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        add(android.Manifest.permission.BLUETOOTH_SCAN)
+                        add(android.Manifest.permission.BLUETOOTH_CONNECT)
+                    }
+                }
+
+                val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+                ) { permissions ->
+                    // Handle permission results if needed
+                    // permissions.entries.forEach {
+                    //     Log.d("Permissions", "${it.key} = ${it.value}")
+                    // }
+                }
+
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    launcher.launch(permissionsToRequest.toTypedArray())
+                }
+
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     PotholeAppNavigation()
                 }
