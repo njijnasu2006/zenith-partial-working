@@ -35,8 +35,11 @@ class PotholeRepository @Inject constructor(
     suspend fun startBluetoothSync(deviceName: String) {
         try {
             bluetoothManager.connectAndListen(deviceName).collect { event ->
-                 val externalId = "bt_${deviceName}_${event.time_s}_${event.dip}"
+                 // Use PHONE timestamp for uniqueness. ESP32 time_s resets on power cycle.
+                 val uniqueId = System.currentTimeMillis()
+                 val externalId = "bt_${deviceName}_${uniqueId}_${event.dip}"
                  
+                 // Deduplication check (should pass now mostly)
                  if (!dao.existsByExternalId(externalId)) {
                         
                         // FETCH CURRENT LOCATION NOW
@@ -80,7 +83,7 @@ class PotholeRepository @Inject constructor(
                             severity = severity,
                             latitude = currentLat,
                             longitude = currentLng,
-                            timestamp = System.currentTimeMillis(),
+                            timestamp = uniqueId,
                             externalId = externalId,
                             isSynced = false 
                         )
@@ -96,9 +99,15 @@ class PotholeRepository @Inject constructor(
                                 description = "Auto-detected via Bluetooth (Dip: ${event.dip})",
                                 type = "Pothole"
                             )
-                            backendApi.submitReport(backendReport)
+                            val response = backendApi.submitReport(backendReport)
+                            if (!response.isSuccessful) {
+                                android.util.Log.e("BackendSync", "Failed: ${response.code()} ${response.message()}")
+                            } else {
+                                android.util.Log.d("BackendSync", "Success: ${response.body()?.id}")
+                            }
                         } catch (e: Exception) {
                             e.printStackTrace()
+                            android.util.Log.e("BackendSync", "Exception: ${e.message}")
                         }
                  }
             }
