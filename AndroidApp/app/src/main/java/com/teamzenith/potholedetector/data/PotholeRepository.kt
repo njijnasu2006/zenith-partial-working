@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.tasks.await
 
 import com.teamzenith.potholedetector.data.remote.AppBluetoothManager
 import kotlinx.coroutines.flow.collect
