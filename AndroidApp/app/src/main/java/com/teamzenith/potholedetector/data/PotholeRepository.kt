@@ -127,12 +127,14 @@ class PotholeRepository @Inject constructor(
     ) {
         var severity = "Medium"
         var description = "Manual Report"
+        var type = "Pothole"
 
         // 1. Analyze with Gemini if it is an image
         if (mediaType == "IMAGE" && bitmap != null) {
             try {
                 val analysis = geminiHelper.analyzePotholeImage(bitmap)
                 severity = analysis.severity
+                type = analysis.type
                 // Append Priority to description to show it without DB migration
                 description = "${analysis.description} [Priority: ${analysis.priority}]"
             } catch (e: Exception) {
@@ -159,7 +161,7 @@ class PotholeRepository @Inject constructor(
                 severity = severity,
                 imageUrl = base64Image,
                 description = description,
-                type = "Pothole"
+                type = type
             )
             backendApi.submitReport(backendReport)
         } catch (e: Exception) {
@@ -168,7 +170,7 @@ class PotholeRepository @Inject constructor(
         
         // 2. Save to Local DB
         val report = PotholeReport(
-            type = "Manual",
+            type = type,
             severity = severity,
             latitude = lat,
             longitude = lng,

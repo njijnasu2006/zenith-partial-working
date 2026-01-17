@@ -22,10 +22,14 @@ export const Dashboard = () => {
 
     if (loading) return <div>Loading...</div>;
 
-    const totalReports = reports.length;
-    const verified = reports.filter(r => r.status === 'Verified').length;
-    const pending = reports.filter(r => r.status === 'Pending').length;
-    const critical = reports.filter(r => r.severity === 'Critical').length;
+    const allReports = reports;
+    // Filter out reports with severity "Invalid" (e.g. non-road images)
+    const validReports = allReports.filter(r => r.severity !== 'Invalid');
+
+    const totalReports = validReports.length;
+    const verified = validReports.filter(r => r.status === 'Verified').length;
+    const pending = validReports.filter(r => r.status === 'Pending').length;
+    const critical = validReports.filter(r => r.severity === 'Critical').length;
 
     return (
         <div className="space-y-8">
@@ -45,7 +49,7 @@ export const Dashboard = () => {
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                     <h3 className="font-bold text-slate-800 mb-4">Recent Activity</h3>
                     <div className="space-y-4">
-                        {reports.slice(0, 5).map((report) => (
+                        {validReports.slice(0, 5).map((report) => (
                             <div key={report.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-lg transition-colors border-l-4"
                                 style={{ borderColor: report.severity === 'Critical' ? '#ef4444' : '#eab308' }}
                             >
