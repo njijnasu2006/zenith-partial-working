@@ -50,7 +50,6 @@ object AppModule {
             .build()
             .create(BackendApi::class.java)
     }
-
     @Provides
     @Singleton
     fun provideFusedLocationClient(@ApplicationContext context: Context): com.google.android.gms.location.FusedLocationProviderClient {
