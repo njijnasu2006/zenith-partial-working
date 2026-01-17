@@ -77,14 +77,14 @@ fun ReportPotholeScreen(
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location != null) {
                 detectedLocation = location
-                locationStatus = "Location Found: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
+                locationStatus = "Location Found: ${String.format("%.8f", location.latitude)}, ${String.format("%.8f", location.longitude)}"
             } else {
                 // 2. If Last Known is null, request fresh location (Slower but accurate)
                 fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                     .addOnSuccessListener { freshLocation ->
                         if (freshLocation != null) {
                             detectedLocation = freshLocation
-                            locationStatus = "Location Found: ${String.format("%.4f", freshLocation.latitude)}, ${String.format("%.4f", freshLocation.longitude)}"
+                            locationStatus = "Location Found: ${String.format("%.8f", freshLocation.latitude)}, ${String.format("%.8f", freshLocation.longitude)}"
                         } else {
                             locationStatus = "Exhausted: Location not found. Ensure GPS is on."
                         }
