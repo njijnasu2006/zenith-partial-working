@@ -45,21 +45,16 @@ class CitizenViewModel @Inject constructor(
         bluetoothJob = viewModelScope.launch {
             _bluetoothStatus.value = "Connecting..."
             try {
-                 // Check permissions (assuming granted)
                 if (androidx.core.content.ContextCompat.checkSelfPermission(
                         context,
                         android.Manifest.permission.ACCESS_FINE_LOCATION
                     ) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 ) {
-                     val priority = com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
-                     val token = com.google.android.gms.tasks.CancellationTokenSource().token
-                     val locHook = fusedLocationClient.getCurrentLocation(priority, token).await()
-                     
-                     val lat = locHook?.latitude ?: 0.0
-                     val lng = locHook?.longitude ?: 0.0
+                     // Check if GPS is enabled maybe? For now just start sync.
+                     // Location is now fetched inside repository independently.
                      
                      _bluetoothStatus.value = "Connected" // Optimistic
-                     repository.startBluetoothSync(deviceName, lat, lng) 
+                     repository.startBluetoothSync(deviceName) 
                 } else {
                      _bluetoothStatus.value = "Error: Loction Permission Missing"
                 }
@@ -76,38 +71,10 @@ class CitizenViewModel @Inject constructor(
     fun refreshData() {
         viewModelScope.launch {
             _isSyncing.value = true
-            try {
-                // Check permissions (assuming granted for now as per instructions to just fix it)
-                if (androidx.core.content.ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.ACCESS_FINE_LOCATION
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                ) {
-                    val priority = com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
-                    val token = com.google.android.gms.tasks.CancellationTokenSource().token
-                    
-                    fusedLocationClient.getCurrentLocation(priority, token).addOnSuccessListener { location ->
-                        viewModelScope.launch {
-                            val lat = location?.latitude ?: 0.0
-                            val lng = location?.longitude ?: 0.0
-                            repository.syncWithEsp32(lat, lng)
-                            _isSyncing.value = false
-                        }
-                    }.addOnFailureListener {
-                        viewModelScope.launch {
-                            repository.syncWithEsp32(0.0, 0.0)
-                            _isSyncing.value = false
-                        }
-                    }
-                } else {
-                    // Fallback if permission not granted
-                    repository.syncWithEsp32(0.0, 0.0)
-                    _isSyncing.value = false
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _isSyncing.value = false
-            }
+            // Bluetooth sync IS the data source now.
+            // We could just trigger a location update or check backend, but for now just idle.
+            kotlinx.coroutines.delay(1000)
+            _isSyncing.value = false
         }
     }
 }
