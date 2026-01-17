@@ -85,7 +85,7 @@ export const Dashboard = () => {
                                 <span className="text-brand-400">94.2%</span>
                             </div>
                             <div className="w-full bg-slate-700 rounded-full h-2">
-                                <div className="bg-brand-500 h-2 rounded-full" style={{ width: '94.2%' }}></div>
+                                <div className="bg-green-500 h-2 rounded-full" style={{ width: '94.2%' }}></div>
                             </div>
                         </div>
                     </div>

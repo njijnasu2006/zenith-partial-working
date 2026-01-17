@@ -20,6 +20,22 @@ export const Analytics = () => {
 
     const COLORS = ['#0ea5e9', '#f59e0b', '#ef4444']; // Blue, Orange, Red
 
+    // Calculate Trend Data (Last 7 Days)
+    const trendData = [...Array(7)].map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const dateString = d.toLocaleDateString();
+
+        const count = reports.filter(r => {
+            const rDate = new Date(r.timestamp).toLocaleDateString();
+            return rDate === dateString;
+        }).length;
+        console.log(`DATE: ${dateString}, COUNT: ${count}, DAY: ${i + 1}`);
+        return { date: dateString, count, label: `Day ${i + 1}` };
+    });
+
+    const maxCount = Math.max(...trendData.map(d => d.count), 1); // Avoid div by 0
+
     return (
         <div className="space-y-6">
             <div>
@@ -30,7 +46,7 @@ export const Analytics = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Damage Distribution Chart */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-[400px]">
-                    <h3 className="font-bold text-slate-800 mb-4">Damage Type Distribution</h3>
+                    <h3 className="font-bold text-slate-800 -mt-2">Damage Type Distribution</h3>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={typeData}>
                             <CartesianGrid strokeDasharray="3 3" />
@@ -45,7 +61,7 @@ export const Analytics = () => {
 
                 {/* Severity Pie Chart */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-[400px]">
-                    <h3 className="font-bold text-slate-800 mb-4">Severity Breakdown</h3>
+                    <h3 className="font-bold text-slate-800 -mt-2">Severity Breakdown</h3>
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie
@@ -70,13 +86,20 @@ export const Analytics = () => {
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h3 className="font-bold text-slate-800 mb-4">Monthly Repair Trends</h3>
+                <h3 className="font-bold text-slate-800 mb-4">Last 7 Days Activity</h3>
                 <div className="h-64 flex items-end justify-between gap-2 px-10 pb-4 border-b border-l border-slate-200">
-                    {/* Mock Trend Bars */}
-                    {[40, 65, 30, 80, 55, 90, 45].map((h, i) => (
-                        <div key={i} className="w-10 bg-slate-100 rounded-t hover:bg-brand-100 transition-colors relative group">
-                            <div className="absolute bottom-0 w-full bg-brand-500 rounded-t transition-all duration-500 group-hover:bg-brand-600" style={{ height: `${h}%` }}></div>
-                            <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400">Day {i + 1}</span>
+                    {trendData.map((data, i) => (
+                        <div key={i} className="w-10 h-full bg-slate-100 rounded-t hover:bg-brand-100 transition-colors relative group tooltip-container">
+                            <div
+                                className="absolute bottom-0 w-full bg-indigo-500 rounded-t transition-all duration-500 group-hover:bg-indigo-600"
+                                style={{ height: `${(data.count / maxCount) * 100}%` }}
+                            ></div>
+                            <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400 whitespace-nowrap">{data.date.split('/')[0]}/{data.date.split('/')[1]}</span>
+
+                            {/* Tooltip */}
+                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                {data.count} Reports
+                            </div>
                         </div>
                     ))}
                 </div>
