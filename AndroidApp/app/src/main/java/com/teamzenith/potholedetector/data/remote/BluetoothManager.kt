@@ -73,7 +73,6 @@ class AppBluetoothManager @Inject constructor(
             } catch (e: Exception) { e.printStackTrace() }
         }
     }.flowOn(Dispatchers.IO)
-    }.flowOn(Dispatchers.IO)
 }
 
 data class Esp32RawEvent(
