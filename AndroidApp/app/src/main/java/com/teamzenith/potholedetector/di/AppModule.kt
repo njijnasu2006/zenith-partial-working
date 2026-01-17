@@ -3,7 +3,7 @@ package com.teamzenith.potholedetector.di
 import android.content.Context
 import androidx.room.Room
 import com.teamzenith.potholedetector.data.local.PotholeDatabase
-import com.teamzenith.potholedetector.data.remote.Esp32Api
+// Esp32Api import removed
 import com.teamzenith.potholedetector.data.remote.BackendApi
 import dagger.Module
 import dagger.Provides
@@ -35,16 +35,7 @@ object AppModule {
     @Singleton
     fun provideDao(db: PotholeDatabase) = db.potholeDao()
 
-    @Provides
-    @Singleton
-    fun provideEsp32Api(): Esp32Api {
-        // ESP32 AP default IP is typically 192.168.4.1
-        return Retrofit.Builder()
-            .baseUrl("http://192.168.4.1") 
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(Esp32Api::class.java)
-    }
+    // Esp32Api removed (Using Bluetooth only)
 
     @Provides
     @Singleton
@@ -58,6 +49,12 @@ object AppModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(BackendApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFusedLocationClient(@ApplicationContext context: Context): com.google.android.gms.location.FusedLocationProviderClient {
+        return com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
     }
 
     @Provides

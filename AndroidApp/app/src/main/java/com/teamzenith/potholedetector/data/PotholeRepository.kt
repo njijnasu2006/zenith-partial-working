@@ -3,7 +3,7 @@ package com.teamzenith.potholedetector.data
 import android.graphics.Bitmap
 import com.teamzenith.potholedetector.data.local.PotholeDao
 import com.teamzenith.potholedetector.data.local.PotholeReport
-import com.teamzenith.potholedetector.data.remote.Esp32Api
+// Esp32Api import removed
 import com.teamzenith.potholedetector.data.remote.BackendApi
 import com.teamzenith.potholedetector.data.remote.BackendReportRequest
 import com.teamzenith.potholedetector.data.remote.LocationData
@@ -20,55 +20,51 @@ import kotlinx.coroutines.flow.onEach
 @Singleton
 class PotholeRepository @Inject constructor(
     private val dao: PotholeDao,
-    private val esp32Api: Esp32Api,
     private val backendApi: BackendApi,
     private val bluetoothManager: AppBluetoothManager,
-    private val geminiHelper: GeminiHelper
+    private val geminiHelper: GeminiHelper,
+    private val fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) {
     val allReports: Flow<List<PotholeReport>> = dao.getAllReports()
 
-    // ESP32: Poll for new events and save them locally
-    suspend fun syncWithEsp32(lat: Double, lng: Double) {
-        try {
-            val response = esp32Api.getEvents()
-            response.events.forEach { event ->
-                val externalId = "esp32_${response.device}_${event.time_s}_${event.dip}"
-                
-                // Deduplication check
-                if (!dao.existsByExternalId(externalId)) {
-                    // Map 'dip' to severity. Assuming negative dip means depth.
-                    val depth = kotlin.math.abs(event.dip)
-                    val severity = when {
-                        depth > 20 -> "Critical"
-                        depth > 14 -> "High"
-                        depth > 10 -> "Medium"
-                        else -> "Low"
-                    }
-
-                    val report = PotholeReport(
-                        type = "Auto",
-                        severity = severity,
-                        latitude = lat, // Use phone's GPS location
-                        longitude = lng,
-                        timestamp = System.currentTimeMillis(), // Use current time of sync
-                        externalId = externalId,
-                        isSynced = true // Auto reports are "synced" from device
-                    )
-                    dao.insertReport(report)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 
     // Bluetooth: Stream events in real-time
-    suspend fun startBluetoothSync(deviceName: String, lat: Double, lng: Double) {
+    @Suppress("MissingPermission") // Checked in ViewModel mainly, but simplified check here
+    suspend fun startBluetoothSync(deviceName: String) {
         try {
             bluetoothManager.connectAndListen(deviceName).collect { event ->
                  val externalId = "bt_${deviceName}_${event.time_s}_${event.dip}"
                  
                  if (!dao.existsByExternalId(externalId)) {
+                        
+                        // FETCH CURRENT LOCATION NOW
+                        var currentLat = 0.0
+                        var currentLng = 0.0
+                        try {
+                             if (androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                             ) {
+                                 // Try last known first for speed
+                                 val lastLoc = kotlinx.coroutines.tasks.await(fusedLocationClient.lastLocation)
+                                 if (lastLoc != null) {
+                                     currentLat = lastLoc.latitude
+                                     currentLng = lastLoc.longitude
+                                 } else {
+                                     // Fallback to fresh request (might be slower)
+                                     val priority = com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
+                                     val token = com.google.android.gms.tasks.CancellationTokenSource().token
+                                     val freshLoc = kotlinx.coroutines.tasks.await(fusedLocationClient.getCurrentLocation(priority, token))
+                                     currentLat = freshLoc?.latitude ?: 0.0
+                                     currentLng = freshLoc?.longitude ?: 0.0
+                                 }
+                             }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+
                         val depth = kotlin.math.abs(event.dip)
                         val severity = when {
                             depth > 20 -> "Critical"
@@ -81,8 +77,8 @@ class PotholeRepository @Inject constructor(
                         val report = PotholeReport(
                             type = "Auto-BT",
                             severity = severity,
-                            latitude = lat,
-                            longitude = lng,
+                            latitude = currentLat,
+                            longitude = currentLng,
                             timestamp = System.currentTimeMillis(),
                             externalId = externalId,
                             isSynced = false 
@@ -93,7 +89,7 @@ class PotholeRepository @Inject constructor(
                         try {
                             val backendReport = BackendReportRequest(
                                 userId = "user_android_bt",
-                                location = LocationData(lat, lng, "Bluetooth Detected"),
+                                location = LocationData(currentLat, currentLng, "Bluetooth Detected"),
                                 severity = severity,
                                 imageUrl = null,
                                 description = "Auto-detected via Bluetooth (Dip: ${event.dip})",
