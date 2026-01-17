@@ -55,8 +55,35 @@ app.get('/reports', (req, res) => {
     res.json(reports);
 });
 
+// Helper to get road name from coordinates (Reverse Geocoding)
+const getRoadName = async (lat, lng) => {
+    try {
+        // Using Nominatim (OpenStreetMap)
+        // IMPORTANT: Requires User-Agent header
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${Number(lat).toFixed(4)}&lon=${Number(lng).toFixed(4)}`;
+
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'ZenithPotholeDetector/1.0'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Nominatim API Error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data.display_name || "Unknown Address";
+    } catch (error) {
+        console.error("Geocoding failed:", error.message);
+        return "Unknown Address";
+    }
+};
+
+// ... existing code ...
+
 // 2. Submit Report (from Android App)
-app.post('/reports', (req, res) => {
+app.post('/reports', async (req, res) => {
     try {
         const newReport = req.body;
         console.log('Received new report from:', newReport.userId || 'Unknown');
@@ -66,14 +93,31 @@ app.post('/reports', (req, res) => {
             return res.status(400).json({ error: 'Missing location or type' });
         }
 
+        // Automatic Reverse Geocoding
+        let address = "Unknown Address";
+        if (newReport.location.lat && newReport.location.lng) {
+            address = await getRoadName(newReport.location.lat, newReport.location.lng);
+            console.log(`Resolved address: ${address}`);
+        }
+
         const reports = readData();
+
+        // Auto-Reject Invalid Reports
+        let initialStatus = 'Pending';
+        if (newReport.type === 'Invalid' || newReport.severity === 'Invalid') {
+            initialStatus = 'Rejected';
+        }
 
         // Add server-side metadata
         const reportWithMeta = {
             ...newReport,
+            location: {
+                ...newReport.location,
+                address: address // Override/Set address
+            },
             id: `r-${Date.now()}`,
             timestamp: new Date().toISOString(),
-            status: 'Pending', // Default status
+            status: initialStatus, // Default or Rejected
             estimatedCompletionDate: null,
             userFeedback: null
         };

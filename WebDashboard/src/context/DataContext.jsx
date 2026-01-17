@@ -11,7 +11,7 @@ export const DataProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     // Base URL - change this if accessing from another device
-    const BASE_URL = 'http://localhost:3000';
+    const BASE_URL = 'http://100.107.44.114:3000';
     const API_URL = `${BASE_URL}/reports`;
 
     const fetchReports = async () => {
