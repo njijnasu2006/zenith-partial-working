@@ -49,7 +49,7 @@ class PotholeRepository @Inject constructor(
                                 ) == android.content.pm.PackageManager.PERMISSION_GRANTED
                              ) {
                                  // Try last known first for speed
-                                 val lastLoc = kotlinx.coroutines.tasks.await(fusedLocationClient.lastLocation)
+                                 val lastLoc = fusedLocationClient.lastLocation.await()
                                  if (lastLoc != null) {
                                      currentLat = lastLoc.latitude
                                      currentLng = lastLoc.longitude
@@ -57,7 +57,7 @@ class PotholeRepository @Inject constructor(
                                      // Fallback to fresh request (might be slower)
                                      val priority = com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
                                      val token = com.google.android.gms.tasks.CancellationTokenSource().token
-                                     val freshLoc = kotlinx.coroutines.tasks.await(fusedLocationClient.getCurrentLocation(priority, token))
+                                     val freshLoc = fusedLocationClient.getCurrentLocation(priority, token).await()
                                      currentLat = freshLoc?.latitude ?: 0.0
                                      currentLng = freshLoc?.longitude ?: 0.0
                                  }
