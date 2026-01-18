@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
-import { Check, X, Maximize2 } from 'lucide-react';
+import { Check, X, Maximize2, Search, Filter } from 'lucide-react';
 
 export const Reports = () => {
     const { reports, updateReportStatus } = useData();
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All Status');
 
     const filteredReports = reports.filter(report => {
         const query = searchQuery.toLowerCase();
@@ -12,29 +13,69 @@ export const Reports = () => {
         const type = report.type?.toLowerCase() || '';
         const status = report.status?.toLowerCase() || '';
 
-        return address.includes(query) || type.includes(query) || status.includes(query);
+        const matchesSearch = address.includes(query) || type.includes(query) || status.includes(query);
+        const matchesStatus = statusFilter === 'All Status' || report.status === statusFilter;
+
+        return matchesSearch && matchesStatus;
     });
+
+    const getStatusColor = (status, isActive = true) => {
+        if (!isActive) return 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50';
+
+        switch (status) {
+            case 'Pending':
+                return 'bg-amber-50 text-amber-700 border-amber-200';
+            case 'Verified':
+                return 'bg-green-50 text-green-700 border-green-200';
+            case 'In Progress':
+                return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+            case 'Resolved':
+                return 'bg-blue-50 text-blue-700 border-blue-200';
+            case 'Rejected':
+                return 'bg-red-50 text-red-700 border-red-200';
+            default:
+                return 'bg-brand-50 text-brand-700 border-brand-200';
+        }
+    };
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Manage Reports</h2>
-                    <p className="text-slate-500">Verify user submissions and AI detections.</p>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800">Manage Reports</h2>
+                        <p className="text-slate-500 text-sm">Verify user submissions and AI detections efficiently.</p>
+                    </div>
+                    <div className="relative w-full md:w-72">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                        <input
+                            type="text"
+                            placeholder="Find by location or type..."
+                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-slate-600"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        placeholder="Search location..."
-                        className="px-4 py-2 border rounded-lg text-sm"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <select className="px-4 py-2 border rounded-lg text-sm bg-white">
-                        <option>All Status</option>
-                        <option>Pending</option>
-                        <option>Verified</option>
-                    </select>
+
+                <div className="mt-6 flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2 text-slate-400 mr-2">
+                        <Filter className="w-4 h-4" />
+                        <span className="text-xs font-medium uppercase tracking-wider">Status:</span>
+                    </div>
+                    {['All Status', 'Pending', 'Verified', 'In Progress', 'Resolved', 'Rejected'].map((status) => (
+                        <button
+                            key={status}
+                            onClick={() => setStatusFilter(status)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all border
+                                ${getStatusColor(status, statusFilter === status)}
+                                ${statusFilter === status ? 'shadow-sm' : ''}`}
+                        >
+                            {status}
+                            {status === 'All Status' && ` (${reports.length})`}
+                            {status !== 'All Status' && ` (${reports.filter(r => r.status === status).length})`}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -81,10 +122,7 @@ export const Reports = () => {
                                     <div className="text-[10px] text-slate-400 mt-1">Source: {report.source}</div>
                                 </td>
                                 <td className="p-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border
-                                ${report.status === 'Verified' ? 'bg-green-50 text-green-600 border-green-200' :
-                                            report.status === 'Resolved' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                                                'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(report.status)}`}>
                                         {report.status}
                                     </span>
                                 </td>
@@ -97,8 +135,8 @@ export const Reports = () => {
                                                 <Check size={16} />
                                             </button>
                                             <button
-                                                onClick={() => updateReportStatus(report.id, 'Ignored')}
-                                                className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200" title="Ignore">
+                                                onClick={() => updateReportStatus(report.id, 'Rejected')}
+                                                className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200" title="Reject">
                                                 <X size={16} />
                                             </button>
                                         </div>
@@ -106,7 +144,7 @@ export const Reports = () => {
                                     {report.status === 'Verified' && (
                                         <span className="text-xs text-slate-400">Escalated to Govt</span>
                                     )}
-                                    {(report.status === 'Resolved' || report.status === 'Ignored') && (
+                                    {(report.status === 'Resolved' || report.status === 'Rejected') && (
                                         <button
                                             onClick={() => updateReportStatus(report.id, 'Pending')}
                                             className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 border border-slate-300">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useData } from '../../context/DataContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 
 export const Analytics = () => {
     const { reports } = useData();
@@ -30,11 +30,13 @@ export const Analytics = () => {
             const rDate = new Date(r.timestamp).toLocaleDateString();
             return rDate === dateString;
         }).length;
-        console.log(`DATE: ${dateString}, COUNT: ${count}, DAY: ${i + 1}`);
-        return { date: dateString, count, label: `Day ${i + 1}` };
-    });
 
-    const maxCount = Math.max(...trendData.map(d => d.count), 1); // Avoid div by 0
+        return {
+            name: `${d.getDate()}/${d.getMonth() + 1}`,
+            count,
+            fullDate: dateString
+        };
+    });
 
     return (
         <div className="space-y-6">
@@ -86,22 +88,42 @@ export const Analytics = () => {
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h3 className="font-bold text-slate-800 mb-4">Last 7 Days Activity</h3>
-                <div className="h-64 flex items-end justify-between gap-2 px-10 pb-4 border-b border-l border-slate-200">
-                    {trendData.map((data, i) => (
-                        <div key={i} className="w-10 h-full bg-slate-100 rounded-t hover:bg-brand-100 transition-colors relative group tooltip-container">
-                            <div
-                                className="absolute bottom-0 w-full bg-indigo-500 rounded-t transition-all duration-500 group-hover:bg-indigo-600"
-                                style={{ height: `${(data.count / maxCount) * 100}%` }}
-                            ></div>
-                            <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400 whitespace-nowrap">{data.date.split('/')[0]}/{data.date.split('/')[1]}</span>
-
-                            {/* Tooltip */}
-                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                                {data.count} Reports
-                            </div>
-                        </div>
-                    ))}
+                <h3 className="font-bold text-slate-800 mb-6">Last 7 Days Activity Trend</h3>
+                <div className="h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={trendData}>
+                            <defs>
+                                <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} />
+                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis
+                                dataKey="name"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#94a3b8', fontSize: 12 }}
+                                dy={10}
+                            />
+                            <YAxis
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#94a3b8', fontSize: 12 }}
+                            />
+                            <Tooltip
+                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            />
+                            <Area
+                                type="monotone"
+                                dataKey="count"
+                                stroke="#6366f1"
+                                strokeWidth={3}
+                                fillOpacity={1}
+                                fill="url(#colorCount)"
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
         </div>
