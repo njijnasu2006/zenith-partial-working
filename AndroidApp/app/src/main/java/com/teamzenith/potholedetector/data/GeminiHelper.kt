@@ -29,9 +29,15 @@ class GeminiHelper @Inject constructor(
                - "Pothole": A hole in the road surface.
                - "Uneven Road": Rough surface, cracks, not a distinct hole.
                - "Water Logging": Water accumulation on the road.
-               - "Invalid": Not a road image (e.g., hand, face, indoor).
-            2. If "type" is "Invalid", set "severity" to "Invalid".
-            3. Return ONLY the JSON string.
+               - "Invalid": Not a road image (e.g., hand, face, indoor) OR a photo of a screen/digital display.
+            2. FRAUD DETECTION: Carefully check if the image is a photo of another screen (laptop, mobile, monitor). Look for:
+               - Pixel grids / Moiré patterns.
+               - Bezels or edges of a device.
+               - Unnatural glare typical of screens.
+               - Browser UI or scrollbars.
+               If any of these are found, set "type" to "Invalid" and "description" to "Potential fraud: Photo of a digital screen detected.".
+            3. If "type" is "Invalid", set "severity" to "Invalid".
+            4. Return ONLY the JSON string.
         """.trimIndent()
         
         return try {
