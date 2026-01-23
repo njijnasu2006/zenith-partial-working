@@ -30,29 +30,19 @@ io.on('connection', (socket) => {
     });
 });
 
-// Helper to read data
-const readData = () => {
-    if (!fs.existsSync(DATA_FILE)) {
-        // Initialize with the mock data we had in the dashboard
-        const initialData = [
-        ];
-        fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
-        return initialData;
-    }
-    return JSON.parse(fs.readFileSync(DATA_FILE));
-};
-
-// Helper to write data
-const writeData = (data) => {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-};
+const db = require('./database');
 
 // --- Routes ---
 
 // 1. Get All Reports (for Dashboard)
-app.get('/reports', (req, res) => {
-    const reports = readData();
-    res.json(reports);
+app.get('/reports', async (req, res) => {
+    try {
+        const reports = await db.getAllReports();
+        res.json(reports);
+    } catch (error) {
+        console.error('Error fetching reports:', error);
+        res.status(500).json({ error: 'Database Error' });
+    }
 });
 
 // Helper to get road name from coordinates (Reverse Geocoding)
@@ -100,8 +90,6 @@ app.post('/reports', async (req, res) => {
             console.log(`Resolved address: ${address}`);
         }
 
-        const reports = readData();
-
         // Auto-Reject Invalid Reports
         let initialStatus = 'Pending';
         if (newReport.type === 'Invalid' || newReport.severity === 'Invalid') {
@@ -118,14 +106,14 @@ app.post('/reports', async (req, res) => {
             id: `r-${Date.now()}`,
             timestamp: new Date().toISOString(),
             status: initialStatus, // Default or Rejected
-            estimatedCompletionDate: null,
-            userFeedback: null
         };
 
-        reports.unshift(reportWithMeta); // Add to top
-        writeData(reports);
+        // Save to DB
+        await db.createReport(reportWithMeta);
 
         // Notify all clients
+        // Fetch fresh list to ensure sync
+        const reports = await db.getAllReports();
         io.emit('reports_updated', reports);
 
         res.status(201).json({ message: 'Report submitted successfully', id: reportWithMeta.id });
@@ -136,24 +124,26 @@ app.post('/reports', async (req, res) => {
 });
 
 // 3. Update Report (for Dashboard Admin/Govt)
-app.patch('/reports/:id', (req, res) => {
+app.patch('/reports/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
-    let reportsData = readData();
 
-    const index = reportsData.findIndex(r => r.id === id);
-    if (index === -1) {
-        return res.status(404).json({ error: 'Report not found' });
+    try {
+        const updatedReport = await db.updateReport(id, updates);
+
+        if (!updatedReport) {
+            return res.status(404).json({ error: 'Report not found' });
+        }
+
+        // Notify all clients
+        const reports = await db.getAllReports();
+        io.emit('reports_updated', reports);
+
+        res.json(updatedReport);
+    } catch (error) {
+        console.error('Error updating report:', error);
+        res.status(500).json({ error: 'Database Error' });
     }
-
-    // Merge updates
-    reportsData[index] = { ...reportsData[index], ...updates };
-    writeData(reportsData);
-
-    // Notify all clients
-    io.emit('reports_updated', reportsData);
-
-    res.json(reportsData[index]);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
